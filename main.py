@@ -81,14 +81,14 @@ def main(config_path, video_url=None, video_file=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Процесс обработки видео.")
     parser.add_argument("config_path", type=str, help="Путь к файлу конфигурации.")
-    parser.add_argument("--youtube", type=str, help="URL видео на YouTube для скачивания.")
+    parser.add_argument("--link", type=str, help="URL видео на YouTube для скачивания.")
     parser.add_argument("--file", type=str, help="Путь к локальному видеофайлу.")
 
     args = parser.parse_args()
 
-    if args.youtube:
-        main(args.config_path, video_url=args.youtube)
+    if args.link:
+        main(args.config_path, video_url=args.link)
     elif args.file:
         main(args.config_path, video_file=args.file)
     else:
-        print("Ошибка: необходимо указать либо --youtube URL, либо --file PATH.")
+        print("Ошибка: необходимо указать либо --link URL, либо --file PATH.")
