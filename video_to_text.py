@@ -2,6 +2,7 @@ import requests
 import json
 import time
 
+
 class YandexSpeechToText:
     def __init__(self, iam_token, audio_uri):
         self.iam_token = iam_token
@@ -12,9 +13,18 @@ class YandexSpeechToText:
         }
         self.base_url = "https://transcribe.api.cloud.yandex.net/speech/stt/v2/longRunningRecognize"
 
-    def transcribe_audio(self, language_code="ru-RU", model="general", profanity_filter=False,
-                         literature_text=True, audio_encoding="LINEAR16_PCM", sample_rate_hertz=48000,
-                         audio_channel_count=1, raw_results=False, output_file_path='out.json'):
+    def transcribe_audio(
+        self,
+        language_code="ru-RU",
+        model="general",
+        profanity_filter=False,
+        literature_text=True,
+        audio_encoding="LINEAR16_PCM",
+        sample_rate_hertz=48000,
+        audio_channel_count=1,
+        raw_results=False,
+        output_file_path="out.json",
+    ):
         # Prepare the request body
         data = {
             "config": {
@@ -26,12 +36,10 @@ class YandexSpeechToText:
                     "audioEncoding": audio_encoding,
                     "sampleRateHertz": sample_rate_hertz,
                     "audioChannelCount": audio_channel_count,
-                    "rawResults": raw_results
+                    "rawResults": raw_results,
                 }
             },
-            "audio": {
-                "uri": self.audio_uri
-            }
+            "audio": {"uri": self.audio_uri},
         }
 
         # Send the initial POST request to start the transcription process
@@ -44,7 +52,7 @@ class YandexSpeechToText:
         print("Request successful.")
         operation_response = response.json()
         print(json.dumps(operation_response, indent=2, ensure_ascii=False))
-        operation_id = operation_response['id']
+        operation_id = operation_response["id"]
 
         return self._wait_for_operation(operation_id, output_file_path)
 
@@ -58,8 +66,8 @@ class YandexSpeechToText:
                 break
 
             operation_status = response.json()
-            if operation_status.get('done', False):
-                with open(output_file_path, 'w', encoding='utf8') as f:
+            if operation_status.get("done", False):
+                with open(output_file_path, "w", encoding="utf8") as f:
                     json.dump(operation_status, f, ensure_ascii=False)
                 print(f"Transcription completed and saved to '{output_file_path}'.")
                 break
