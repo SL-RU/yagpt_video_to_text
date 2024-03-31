@@ -27,7 +27,7 @@ def remove_files(config):
             print(f"Файл {file_path} удален.")
 
 
-def main(config_path, video_url=None, video_file=None):
+def process_video_or_file(config_path, video_url=None, video_file=None):
     with open(config_path, "r") as config_file:
         config = json.load(config_file)
 
@@ -81,14 +81,27 @@ def main(config_path, video_url=None, video_file=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Процесс обработки видео.")
     parser.add_argument("config_path", type=str, help="Путь к файлу конфигурации.")
-    parser.add_argument("--link", type=str, help="URL видео на YouTube для скачивания.")
-    parser.add_argument("--file", type=str, help="Путь к локальному видеофайлу.")
+    parser.add_argument("--link", action="append", help="URL видео для скачивания.")
+    parser.add_argument("--file", action="append", help="Путь к локальному видеофайлу.")
 
     args = parser.parse_args()
 
+    # Объединяем ссылки и файлы в один список для последовательной обработки
+    items_to_process = []
     if args.link:
-        main(args.config_path, video_url=args.link)
-    elif args.file:
-        main(args.config_path, video_file=args.file)
-    else:
-        print("Ошибка: необходимо указать либо --link URL, либо --file PATH.")
+        for link in args.link:
+            items_to_process.append(("link", link))
+    if args.file:
+        for file in args.file:
+            items_to_process.append(("file", file))
+
+    print(items_to_process)
+
+    # Последовательно обрабатываем каждый элемент
+    for item_type, item_value in items_to_process:
+        if item_type == "link":
+            print(f"Обрабатывается ссылка: {item_value}")
+            process_video_or_file(args.config_path, video_url=item_value)
+        elif item_type == "file":
+            print(f"Обрабатывается файл: {item_value}")
+            process_video_or_file(args.config_path, video_file=item_value)
