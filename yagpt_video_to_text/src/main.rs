@@ -2,9 +2,12 @@ use jsonwebtoken::{encode, EncodingKey, Header, Algorithm};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::fs; // Уже импортировано
+use std::fs;
 
+// Constants for the IAM token API endpoint
+const IAM_URL: &str = "https://iam.api.cloud.yandex.net/iam/v1/tokens";
 
+/// Represents authentication information required to generate a JWT.
 #[derive(Debug, Serialize, Deserialize)]
 struct AuthInfo {
     service_account_id: String,
@@ -12,6 +15,7 @@ struct AuthInfo {
     private_key: String,
 }
 
+/// Claims to be encoded into the JWT.
 #[derive(Debug, Serialize)]
 struct Claims {
     aud: String,
@@ -20,15 +24,22 @@ struct Claims {
     exp: u64,
 }
 
+/// A trait defining functionality for IAM token generation.
 trait IAMTokenGenerator {
+    /// Loads authentication information from a specified file.
     fn load_auth_info(&self) -> Result<AuthInfo, Box<dyn std::error::Error>>;
+
+    /// Generates an IAM token using the loaded authentication information.
     async fn generate_iam_token(&self) -> Result<String, Box<dyn std::error::Error>>;
 }
+
+/// A client capable of generating IAM tokens.
 struct TokenClient {
     file_path: String,
 }
 
 impl TokenClient {
+    /// Constructs a new `TokenClient` given a path to the authentication information file.
     pub fn new(file_path: String) -> Self {
         TokenClient { file_path }
     }
@@ -36,7 +47,7 @@ impl TokenClient {
 
 impl IAMTokenGenerator for TokenClient {
     fn load_auth_info(&self) -> Result<AuthInfo, Box<dyn std::error::Error>> {
-        let data = fs::read_to_string(&self.file_path)?; // Теперь возвращает Box<dyn std::error::Error>
+        let data = fs::read_to_string(&self.file_path)?;
         serde_json::from_str(&data).map_err(Into::into)
     }
 
@@ -45,7 +56,7 @@ impl IAMTokenGenerator for TokenClient {
         let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
         
         let claims = Claims {
-            aud: "https://iam.api.cloud.yandex.net/iam/v1/tokens".to_string(),
+            aud: IAM_URL.to_string(),
             iss: auth_info.service_account_id,
             iat: now,
             exp: now + 360,
@@ -60,7 +71,7 @@ impl IAMTokenGenerator for TokenClient {
         let jwt = encode(&header, &claims, &EncodingKey::from_rsa_pem(auth_info.private_key.as_bytes())?)?;
 
         let client = Client::new();
-        let response = client.post("https://iam.api.cloud.yandex.net/iam/v1/tokens")
+        let response = client.post(IAM_URL)
             .json(&serde_json::json!({ "jwt": jwt }))
             .send()
             .await?;
@@ -73,7 +84,6 @@ impl IAMTokenGenerator for TokenClient {
         }
     }
 }
-
 
 #[tokio::main]
 async fn main() {
