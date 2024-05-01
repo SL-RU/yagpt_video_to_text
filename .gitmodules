@@ -1,0 +1,3 @@
+[submodule "yagpt_video_to_text/cloudapi"]
+	path = yagpt_video_to_text/cloudapi
+	url = https://github.com/yandex-cloud/cloudapi.git
