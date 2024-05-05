@@ -4,7 +4,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, io};
 use tonic::metadata::MetadataValue;
 use tonic::transport::{Channel, ClientTlsConfig, Endpoint};
-use tonic::Request;
 
 use crate::api::yandex::cloud::iam::v1 as api;
 
@@ -28,7 +27,7 @@ struct Claims {
     exp: u64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct IAMToken {
     token: String,
 }
@@ -36,7 +35,7 @@ pub struct IAMToken {
 #[macro_export]
 macro_rules! iam_interceptor {
     ($client:ty,$iam:expr,$endpoint:expr) => {{
-        <$client>::with_interceptor($iam.connect($endpoint).await?, $iam.get_interceptor())
+        <$client>::with_interceptor($iam.connect($endpoint).await?, $iam.clone())
     }};
 }
 
@@ -47,14 +46,15 @@ impl IAMToken {
             .connect()
             .await
     }
+}
 
-    pub fn get_interceptor(&self) -> impl tonic::service::Interceptor {
+impl tonic::service::Interceptor for IAMToken {
+    fn call(&mut self, req: tonic::Request<()>) -> Result<tonic::Request<()>, tonic::Status> {
+        let mut req = req;
         let token_value: MetadataValue<_> = format!("Bearer {}", self.token).parse().unwrap();
-        move |mut req: Request<()>| {
-            req.metadata_mut()
-                .insert("Authorization", token_value.clone());
-            Ok(req)
-        }
+        req.metadata_mut()
+            .insert("authorization", token_value.clone());
+        Ok(req)
     }
 }
 

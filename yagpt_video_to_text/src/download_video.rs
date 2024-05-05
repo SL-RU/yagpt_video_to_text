@@ -5,21 +5,21 @@ use std::{
 
 use youtube_dl::YoutubeDl;
 
-pub async fn download_video(url: String, path: &Path) -> io::Result<PathBuf> {
-    if path.exists() {
-        fs::remove_file(path)?;
+pub async fn download_video(url: String, local_path: &Path) -> io::Result<PathBuf> {
+    if local_path.exists() {
+        fs::remove_file(local_path)?;
     }
-    let filename = path
+    let filename = local_path
         .file_name()
         .ok_or(io::Error::new(
             io::ErrorKind::NotFound,
-            format!("filename error {:?}", path),
+            format!("filename error {:?}", local_path),
         ))?
         .to_string_lossy();
 
-    let dir = path.parent().ok_or(io::Error::new(
+    let dir = local_path.parent().ok_or(io::Error::new(
         io::ErrorKind::NotFound,
-        format!("file parent error {:?}", path),
+        format!("file parent error {:?}", local_path),
     ))?;
 
     let mut output = YoutubeDl::new(url);
@@ -47,5 +47,5 @@ pub async fn download_video(url: String, path: &Path) -> io::Result<PathBuf> {
         )
     })?;
 
-    Ok(path.to_path_buf())
+    Ok(local_path.to_path_buf())
 }

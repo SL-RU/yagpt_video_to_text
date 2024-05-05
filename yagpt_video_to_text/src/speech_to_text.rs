@@ -1,23 +1,18 @@
-use prost::Message;
-
 use crate::{
-    api::yandex::cloud::{
-        ai::stt::v2::{
-            self as api, recognition_spec::AudioEncoding, stt_service_client::SttServiceClient,
-            LongRunningRecognitionRequest, LongRunningRecognitionResponse, RecognitionAudio,
-            RecognitionConfig, RecognitionSpec,
-        },
-        operation::{operation_service_client::OperationServiceClient, GetOperationRequest},
+    api::yandex::cloud::ai::stt::v2::{
+        recognition_audio::AudioSource, recognition_spec::AudioEncoding,
+        stt_service_client::SttServiceClient, LongRunningRecognitionRequest,
+        LongRunningRecognitionResponse, RecognitionAudio, RecognitionConfig, RecognitionSpec,
     },
+    cloud_operation::CloudOperation,
     iam_generator::IAMToken,
     iam_interceptor,
 };
-use std::{error::Error, time::Duration};
+use std::error::Error;
 
 const STT_GRPC_URL: &str = "https://transcribe.api.cloud.yandex.net";
-const OPERATION_GRPC_URL: &str = "https://operation.api.cloud.yandex.net";
 
-pub async fn autio_to_text(iam: &IAMToken, uri: String) -> Result<String, Box<dyn Error>> {
+pub async fn autio_to_text(iam: &IAMToken, uri: String) -> Result<Vec<String>, Box<dyn Error>> {
     let config = RecognitionConfig {
         specification: Some(RecognitionSpec {
             audio_encoding: AudioEncoding::Mp3 as i32,
@@ -35,7 +30,7 @@ pub async fn autio_to_text(iam: &IAMToken, uri: String) -> Result<String, Box<dy
     };
 
     let audio = RecognitionAudio {
-        audio_source: Some(api::recognition_audio::AudioSource::Uri(uri)),
+        audio_source: Some(AudioSource::Uri(uri)),
     };
 
     let request = LongRunningRecognitionRequest {
@@ -46,39 +41,20 @@ pub async fn autio_to_text(iam: &IAMToken, uri: String) -> Result<String, Box<dy
     let mut client = iam_interceptor!(SttServiceClient<_>, iam, STT_GRPC_URL);
     let res = client.long_running_recognize(request).await?;
 
-    let mut operation_client = iam_interceptor!(OperationServiceClient<_>, iam, OPERATION_GRPC_URL);
+    let mut op = CloudOperation::new(iam, res.get_ref().id.clone()).await?;
+    let resp: LongRunningRecognitionResponse = op.wait_done().await?;
 
-    loop {
-        let operation_status = operation_client
-            .get(GetOperationRequest {
-                operation_id: res.get_ref().id.clone(),
-            })
-            .await?
-            .into_inner();
-
-        if operation_status.done {
-            if let Some(op) = operation_status.result {
-                match op {
-                    crate::api::yandex::cloud::operation::operation::Result::Error(_) => {
-                        return Ok(String::new())
-                    }
-                    crate::api::yandex::cloud::operation::operation::Result::Response(resp) => {
-                        let resp = LongRunningRecognitionResponse::decode(resp.value.as_slice())?;
-                        let mut out = String::new();
-                        for chunk in resp.chunks {
-                            out += &chunk.alternatives[0].text;
-                            out += "\r\n";
-                        }
-                        return Ok(out);
-                    }
-                }
-            }
-
-            break;
-        }
-
-        tokio::time::sleep(Duration::from_millis(1000)).await;
+    let mut out: Vec<String> = Vec::new();
+    for chunk in resp.chunks {
+        out.push(
+            chunk
+                .alternatives
+                .first()
+                .and_then(|c| Some(c.text.to_string()))
+                .get_or_insert("".to_string())
+                .to_string(),
+        );
     }
 
-    Ok("".to_string())
+    Ok(out)
 }

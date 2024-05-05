@@ -5,7 +5,7 @@ use s3::{config::Credentials, presigning::PresigningConfig, primitives::ByteStre
 use std::{error::Error, io, path::PathBuf, time::Duration};
 
 static STORAGE_ENDPOINT_URL: &str = "https://storage.yandexcloud.net";
-static STORAGE_REGION: Region = Region::new("ru-central1");
+static STORAGE_REGION: &str = "ru-central1";
 
 pub struct Uploader {
     s3_client: aws_sdk_s3::Client,
@@ -24,7 +24,7 @@ impl Uploader {
                 "",
             ))
             .endpoint_url(STORAGE_ENDPOINT_URL)
-            .region(STORAGE_REGION)
+            .region(Region::new(STORAGE_REGION))
             .build();
 
         Self {
@@ -34,19 +34,21 @@ impl Uploader {
     }
 
     pub async fn upload(&self, local_file_path: PathBuf) -> Result<String, Box<dyn Error>> {
+        println!("local {:?}", local_file_path);
         let filename = local_file_path
             .file_name()
             .ok_or(io::Error::new(io::ErrorKind::InvalidData, "filename error"))?;
         let body = ByteStream::from_path(local_file_path.clone()).await?;
         let expires_in = Duration::from_secs(3600 * 6);
 
-        if let Ok(_) = self
+        if self
             .s3_client
             .delete_object()
             .bucket(self.bucket_name.clone())
             .key(filename.to_string_lossy())
             .send()
             .await
+            .is_ok()
         {
             println!("S3: deleted old file with the same name in the bucket")
         }
