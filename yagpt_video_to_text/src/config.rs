@@ -1,5 +1,5 @@
-use std::fs;
 use serde::Deserialize;
+use std::fs;
 
 #[derive(Deserialize)]
 pub struct Config {

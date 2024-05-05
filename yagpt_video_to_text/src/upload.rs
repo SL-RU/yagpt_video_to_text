@@ -34,12 +34,11 @@ impl Uploader {
     }
 
     pub async fn upload(&self, local_file_path: PathBuf) -> Result<String, Box<dyn Error>> {
-        println!("local {:?}", local_file_path);
         let filename = local_file_path
             .file_name()
             .ok_or(io::Error::new(io::ErrorKind::InvalidData, "filename error"))?;
         let body = ByteStream::from_path(local_file_path.clone()).await?;
-        let expires_in = Duration::from_secs(3600 * 6);
+        let expires_in = Duration::from_secs(60 * 60 * 12);
 
         if self
             .s3_client

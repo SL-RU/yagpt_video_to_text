@@ -48,7 +48,7 @@ impl CloudOperation {
             }
 
             if !operation_status.done {
-                if started.elapsed() > Duration::from_secs(300) {
+                if started.elapsed() > Duration::from_secs((4 * 60) * 10 * 2) {
                     return Err("Cloud operation: execution timeout".into());
                 }
 

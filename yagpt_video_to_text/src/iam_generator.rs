@@ -51,9 +51,10 @@ impl IAMToken {
 impl tonic::service::Interceptor for IAMToken {
     fn call(&mut self, req: tonic::Request<()>) -> Result<tonic::Request<()>, tonic::Status> {
         let mut req = req;
-        let token_value: MetadataValue<_> = format!("Bearer {}", self.token).parse().unwrap();
-        req.metadata_mut()
-            .insert("authorization", token_value.clone());
+        if let Ok(token_value) = format!("Bearer {}", self.token).parse::<MetadataValue<_>>() {
+            req.metadata_mut()
+                .insert("authorization", token_value.clone());
+        }
         Ok(req)
     }
 }

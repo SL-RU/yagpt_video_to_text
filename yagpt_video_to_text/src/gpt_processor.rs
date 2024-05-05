@@ -1,9 +1,7 @@
 use crate::{
-    api::yandex::{
-        cloud::ai::foundation_models::v1::{
-            message, text_generation_async_service_client::TextGenerationAsyncServiceClient,
-            CompletionOptions, CompletionRequest, CompletionResponse, Message,
-        },
+    api::yandex::cloud::ai::foundation_models::v1::{
+        message, text_generation_async_service_client::TextGenerationAsyncServiceClient,
+        CompletionOptions, CompletionRequest, CompletionResponse, Message,
     },
     cloud_operation::CloudOperation,
     config::Config,
@@ -28,7 +26,7 @@ pub async fn proceed(
         model_uri: config.model_uri.clone(),
         completion_options: Some(CompletionOptions {
             temperature: Some(0.6),
-            max_tokens: Some(2000),
+            max_tokens: Some(5000),
             stream: false,
         }),
         messages: vec![
