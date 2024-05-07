@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use std::fs;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct Config {
     pub video_path: String,
     pub audio_path: String,
@@ -14,6 +14,8 @@ pub struct Config {
     pub aws_secret_access_key: String,
     pub bucket_name: String,
     pub token_path: String,
+    pub telegram_bot_key: String,
+    pub telegram_user_secret: String,
 }
 
 impl Config {

@@ -14,22 +14,24 @@ use crate::{
 const OPERATION_GRPC_URL: &str = "https://operation.api.cloud.yandex.net";
 
 pub struct CloudOperation {
-    operation_id: String,
     client: OperationServiceClient<InterceptedService<Channel, IAMToken>>,
+    timeout: Duration,
 }
 
 impl CloudOperation {
-    pub async fn new(
-        iam: &IAMToken,
-        operation_id: String,
-    ) -> Result<Self, tonic::transport::Error> {
+    pub async fn new(iam: &IAMToken) -> Result<Self, tonic::transport::Error> {
         Ok(Self {
-            operation_id,
             client: iam_interceptor!(OperationServiceClient<_>, iam, OPERATION_GRPC_URL),
+            timeout: Duration::from_secs(60 * 2),
         })
     }
 
-    pub async fn wait_done<R>(&mut self) -> Result<R, Box<dyn Error>>
+    pub fn set_timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = timeout;
+        self
+    }
+
+    pub async fn wait_done<R>(&mut self, operation_id: String) -> Result<R, Box<dyn Error>>
     where
         R: Message + Default,
     {
@@ -38,17 +40,19 @@ impl CloudOperation {
             let operation_status = self
                 .client
                 .get(GetOperationRequest {
-                    operation_id: self.operation_id.clone(),
+                    operation_id: operation_id.clone(),
                 })
                 .await?
                 .into_inner();
+
+            println!("op {:?}", operation_status);
 
             if let Some(operation::Result::Error(err)) = operation_status.result {
                 return Err(format!("Cloud operation: execution error: {:?}", err).into());
             }
 
             if !operation_status.done {
-                if started.elapsed() > Duration::from_secs((4 * 60) * 10 * 2) {
+                if started.elapsed() > self.timeout {
                     return Err("Cloud operation: execution timeout".into());
                 }
 

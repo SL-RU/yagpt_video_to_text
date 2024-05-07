@@ -9,94 +9,79 @@ mod api {
 mod cloud_operation;
 mod config;
 mod gpt_processor;
-
-use std::{
-    path::{Path, PathBuf},
-    str::FromStr,
-};
+mod telegram;
+mod video_to_text;
 
 use clap::Parser;
-use convert_video_to_audio::convert_video_to_audio;
-use encoding::{self, Encoding};
-use iam_generator::IAMGenerator;
-use tokio::io::AsyncWriteExt;
-use upload::Uploader;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
     #[arg(short, long)]
     config: String,
-    uri: String,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    pretty_env_logger::init();
     let args = Args::parse();
     let config = config::Config::read(&args.config);
-
     println!("Configuration loaded");
-    println!("Downloading video");
-    let video_path =
-        download_video::download_video(args.uri, Path::new(&config.video_path)).await?;
 
-    println!("Download complete");
-    println!("Converting video to audio");
-    let audio_path =
-        convert_video_to_audio(video_path, PathBuf::from_str(&config.audio_path)?).await?;
-    println!("Converting complete");
+    let (req_sender, mut req_receiver) = tokio::sync::mpsc::channel::<telegram::UserRequest>(1);
 
-    println!("Uploading audio to S3");
-    let uploader = Uploader::new(&config);
-    let bucket_object_uri = uploader.upload(audio_path).await?;
-    println!("Uploading complete");
+    let video_bot = telegram::VideoBot::new(
+        config.telegram_bot_key,
+        config.telegram_user_secret,
+        req_sender,
+    );
 
-    println!("Generating IAM token");
-    let client = IAMGenerator::new(config.token_path.clone())?;
-    let token = client.generate_iam_token().await?;
+    let process_config = config.clone();
+    let bot = video_bot.clone();
+    tokio::spawn(async move {
+        loop {
+            if let Some(req) = req_receiver.recv().await {
+                let (log_sender, mut log_receiver) = tokio::sync::mpsc::channel::<String>(10);
+                let process = video_to_text::video_to_text(
+                    &process_config,
+                    video_to_text::Request { uri: req.uri },
+                    log_sender,
+                );
 
-    println!("Audio to text. It may be long!");
-    let text_list = speech_to_text::autio_to_text(&token, bucket_object_uri).await?;
-
-    println!("Audio to text complete. Lines count: {}", text_list.len());
-
-    let mut file = tokio::fs::File::create(config.transcribed_text.clone()).await?;
-    for line in text_list.iter() {
-        let line = encoding::all::UTF_8.encode(line, encoding::EncoderTrap::Replace)?;
-        file.write_all(&line).await?;
-        file.write_all(b"\r\n").await?;
-    }
-    file.shutdown().await?;
-
-    let mut process_text = String::new();
-    let mut chars = 0;
-    let mut file = tokio::fs::File::create(config.refactored_md.clone()).await?;
-    for (index, line) in text_list.iter().enumerate() {
-        process_text += line;
-        process_text += "\r\n";
-
-        const MAX_PROMT_SIZE: usize = 10000;
-        if process_text.len() > MAX_PROMT_SIZE {
-            chars += process_text.len();
-            let res = gpt_processor::proceed(&token, &config, process_text).await?;
-            println!("Gpt processor [{}] {}/{}", chars, index, text_list.len());
-            let line = encoding::all::UTF_8.encode(&res, encoding::EncoderTrap::Replace)?;
-            file.write_all(&line).await?;
-            file.write_all(b"\r\n\r\n").await?;
-            process_text = String::new();
+                tokio::pin!(process);
+                loop {
+                    let msg: Option<(i64, String)>;
+                    let done;
+                    tokio::select! {
+                        Some(i) = log_receiver.recv() => {
+                            msg = Some((req.chat_id, i));
+                            done = false;
+                        },
+                        r = &mut process => {
+                            match r {
+                                Ok(buf) => {
+                                    msg = Some((req.chat_id, buf));
+                                },
+                                Err(e) => {
+                                    msg = Some((req.chat_id, format!("{:?}", e)));
+                                }
+                            }
+                            done = true;
+                        },
+                    };
+                    if let Some((chat_id, msg)) = msg {
+                        println!("log {}", msg);
+                        bot.send(chat_id, msg).await;
+                    }
+                    if done {
+                        break;
+                    }
+                }
+            }
         }
-    }
+    });
 
-    if !process_text.is_empty() {
-        chars += process_text.len();
-        let res = gpt_processor::proceed(&token, &config, process_text).await?;
-        let line = encoding::all::UTF_8.encode(&res, encoding::EncoderTrap::Replace)?;
-        file.write_all(&line).await?;
-    }
-
-    file.shutdown().await?;
-    println!("Gpt processor [{}] {}", chars, text_list.len());
-    println!("Final file: {}", config.refactored_md);
+    video_bot.start_bot().await;
 
     Ok(())
 }

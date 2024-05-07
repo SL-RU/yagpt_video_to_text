@@ -8,7 +8,7 @@ use crate::{
     iam_generator::IAMToken,
     iam_interceptor,
 };
-use std::error::Error;
+use std::{error::Error, time::Duration};
 
 const STT_GRPC_URL: &str = "https://transcribe.api.cloud.yandex.net";
 
@@ -41,8 +41,10 @@ pub async fn autio_to_text(iam: &IAMToken, uri: String) -> Result<Vec<String>, B
     let mut client = iam_interceptor!(SttServiceClient<_>, iam, STT_GRPC_URL);
     let res = client.long_running_recognize(request).await?;
 
-    let mut op = CloudOperation::new(iam, res.get_ref().id.clone()).await?;
-    let resp: LongRunningRecognitionResponse = op.wait_done().await?;
+    let mut op = CloudOperation::new(iam)
+        .await?
+        .set_timeout(Duration::from_secs((4 * 60) * 10 * 2));
+    let resp: LongRunningRecognitionResponse = op.wait_done(res.get_ref().id.clone()).await?;
 
     let mut out: Vec<String> = Vec::new();
     for chunk in resp.chunks {
