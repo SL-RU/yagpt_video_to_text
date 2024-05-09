@@ -9,10 +9,12 @@ mod api {
 mod cloud_operation;
 mod config;
 mod gpt_processor;
+mod markdown_to_html;
 mod telegram;
 mod video_to_text;
 
 use clap::Parser;
+use teloxide::{requests::Requester, types::ChatId, Bot};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -31,8 +33,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (req_sender, mut req_receiver) = tokio::sync::mpsc::channel::<telegram::UserRequest>(1);
 
     let video_bot = telegram::VideoBot::new(
-        config.telegram_bot_key,
-        config.telegram_user_secret,
+        config.telegram_bot_key.clone(),
+        config.telegram_user_secret.clone(),
         req_sender,
     );
 
@@ -50,31 +52,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 tokio::pin!(process);
                 loop {
-                    let msg: Option<(i64, String)>;
+                    let msg: Option<String>;
                     let done;
                     tokio::select! {
                         Some(i) = log_receiver.recv() => {
-                            msg = Some((req.chat_id, i));
+                            msg = Some(i);
                             done = false;
                         },
                         r = &mut process => {
                             match r {
                                 Ok(buf) => {
-                                    msg = Some((req.chat_id, buf));
+                                    msg = Some(buf);
                                 },
                                 Err(e) => {
-                                    msg = Some((req.chat_id, format!("{:?}", e)));
+                                    msg = Some(format!("{:?}", e));
                                 }
                             }
                             done = true;
                         },
                     };
-                    if let Some((chat_id, msg)) = msg {
-                        println!("log {}", msg);
-                        bot.send(chat_id, msg).await;
-                    }
                     if done {
+                        if let Some(msg) = msg {
+                            let _ = bot.bot.send_document(ChatId(req.chat_id), markdown_to_html::markdown_to_tg(&msg))
+                                .await;
+                        }
+
+                        bot.send(req.chat_id, "Finish".to_string()).await;
                         break;
+                    }
+                    if let Some(msg) = msg {
+                        println!("log {}", msg);
+                        bot.send(req.chat_id, msg).await;
                     }
                 }
             }

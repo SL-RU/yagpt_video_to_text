@@ -1,6 +1,6 @@
 use std::time::Duration;
 use teloxide::{
-    adaptors::DefaultParseMode, dispatching::dialogue::InMemStorage, prelude::*, types::InputFile,
+    adaptors::DefaultParseMode, dispatching::dialogue::InMemStorage, prelude::*, types::InputFile, requests::Requester
 };
 use tokio::sync::mpsc::Sender;
 

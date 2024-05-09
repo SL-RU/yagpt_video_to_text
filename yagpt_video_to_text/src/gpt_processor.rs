@@ -14,8 +14,7 @@ use std::error::Error;
 
 const LLM_ENDPOINT_URL: &str = "https://llm.api.cloud.yandex.net";
 
-const SYSTEM_INSTRUCTION: &str = "Это траскрибирование лекции в университете, сделай текст читаемым, исправь знаки, повторы и ошибки и сформируй абзацы.";
-const ASSISTANT_INSTRUCTION: &str = "Переформулируй, чтобы это были не обрывистые высказывания преподавателя, а текст, который удобно читать, а большие связанные абзацы, без обращений к аудитории только суть лекции. Не сокращай, исходный и конечный объём должен быть примерно одинаковый. Если можешь, то разбей на логические блоки. Так же можешь добавить Markdown форматирование";
+const SYSTEM_INSTRUCTION: &str = "Это траскрибирование лекции в университете, сделай текст читаемым, исправь знаки, повторы и ошибки и сформируй абзацы. Переформулируй, чтобы это были не обрывистые высказывания преподавателя, а текст, который удобно читать, а большие связанные абзацы, без обращений к аудитории только суть лекции. Не сокращай, исходный и конечный объём должен быть примерно одинаковый. Если можешь, то разбей на логические блоки. Так же можешь добавить Markdown форматирование";
 
 pub struct GptProcessor {
     client: TextGenerationAsyncServiceClient<InterceptedService<Channel, IAMToken>>,
@@ -48,11 +47,7 @@ impl GptProcessor {
                     content: Some(message::Content::Text(String::from(SYSTEM_INSTRUCTION))),
                 },
                 Message {
-                    role: String::from("assistant"),
-                    content: Some(message::Content::Text(String::from(ASSISTANT_INSTRUCTION))),
-                },
-                Message {
-                    role: String::from("system"),
+                    role: String::from("user"),
                     content: Some(message::Content::Text(input)),
                 },
             ],

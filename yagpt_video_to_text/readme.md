@@ -1,0 +1,4 @@
+# Requires
+
+- yt-dlp
+- ffmpeg
