@@ -14,7 +14,7 @@ mod telegram;
 mod video_to_text;
 
 use clap::Parser;
-use teloxide::{requests::Requester, types::ChatId, Bot};
+use teloxide::{requests::Requester, types::ChatId};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -73,7 +73,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     };
                     if done {
                         if let Some(msg) = msg {
-                            let _ = bot.bot.send_document(ChatId(req.chat_id), markdown_to_html::markdown_to_tg(&msg))
+                            let _ = bot
+                                .bot
+                                .send_document(
+                                    ChatId(req.chat_id),
+                                    markdown_to_html::markdown_to_tg(&msg),
+                                )
                                 .await;
                         }
 
