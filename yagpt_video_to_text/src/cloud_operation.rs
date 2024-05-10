@@ -45,7 +45,7 @@ impl CloudOperation {
                 .await?
                 .into_inner();
 
-            println!("op {:?}", operation_status);
+            log::debug!("op {:?}", operation_status);
 
             if let Some(operation::Result::Error(err)) = operation_status.result {
                 return Err(format!("Cloud operation: execution error: {:?}", err).into());

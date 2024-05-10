@@ -53,14 +53,12 @@ impl GptProcessor {
             ],
         };
 
-        println!("req {:?}", req);
         let resp = self.client.completion(req).await?;
-        println!("resp {:?}", resp);
         let resp: CompletionResponse = self
             .operation_client
             .wait_done(resp.get_ref().id.clone())
             .await?;
-        println!("tokens: {:?}", resp.usage);
+        log::debug!("tokens: {:?}", resp.usage);
         let resp = &resp
             .alternatives
             .first()

@@ -35,7 +35,7 @@ pub async fn download_video(url: String, local_path: &Path) -> io::Result<PathBu
         )
     })?;
 
-    println!(
+    log::info!(
         "Video title: {:?}",
         data.into_single_video().unwrap_or_default().title
     );

@@ -49,7 +49,7 @@ impl Uploader {
             .await
             .is_ok()
         {
-            println!("S3: deleted old file with the same name in the bucket")
+            log::debug!("S3: deleted old file with the same name in the bucket")
         }
 
         self.s3_client

@@ -1,7 +1,4 @@
-use std::time::Duration;
-use teloxide::{
-    dispatching::dialogue::InMemStorage, prelude::*, requests::Requester
-};
+use teloxide::{dispatching::dialogue::InMemStorage, prelude::*, requests::Requester};
 use tokio::sync::mpsc::Sender;
 
 type MyDialogue = Dialogue<State, InMemStorage<State>>;
@@ -57,16 +54,19 @@ impl VideoBot {
             .branch(dptree::case![State::Start].endpoint(start))
             .branch(dptree::case![State::ReceiveUrl].endpoint(receive_url));
 
-        Dispatcher::builder(self.bot.clone(), handler)
+        let mut dispatcher = Dispatcher::builder(self.bot.clone(), handler)
             .dependencies(dptree::deps![
                 InMemStorage::<State>::new(),
                 self.user_request.clone(),
                 self.data.clone()
             ])
             .enable_ctrlc_handler()
-            .build()
-            .dispatch()
-            .await;
+            .build();
+
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {},
+            _ = dispatcher.dispatch() => {},
+        }
     }
 }
 
@@ -97,16 +97,11 @@ async fn start(
 async fn receive_url(bot: BotType, msg: Message, s: RequestSender) -> HandlerResult {
     match msg.text() {
         Some(text) => {
-            match s
-                .send_timeout(
-                    UserRequest {
-                        uri: text.to_string(),
-                        chat_id: msg.chat.id.0,
-                    },
-                    Duration::from_millis(100),
-                )
-                .await
-            {
+            let request_result = s.try_send(UserRequest {
+                uri: text.to_string(),
+                chat_id: msg.chat.id.0,
+            });
+            match request_result {
                 Ok(_) => bot.send_message(msg.chat.id, "Принято").await?,
                 Err(_) => {
                     bot.send_message(msg.chat.id, "Очередь занята, подождите")
