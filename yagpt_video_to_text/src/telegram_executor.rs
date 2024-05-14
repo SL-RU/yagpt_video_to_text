@@ -11,7 +11,7 @@ use tokio::sync::mpsc::Receiver;
 
 enum RequestInfo {
     Message(String),
-    Done(PathBuf),
+    Done(String),
     Error(String),
 }
 

@@ -18,7 +18,7 @@ pub async fn video_to_text(
     config: &Config,
     request: Request,
     channel: tokio::sync::mpsc::Sender<String>,
-) -> Result<PathBuf, Box<dyn std::error::Error>> {
+) -> Result<String, Box<dyn std::error::Error>> {
     let log = |msg: String| {
         let channel = channel.clone();
         log::info!("{}", msg);
@@ -94,10 +94,6 @@ pub async fn video_to_text(
         output += &res;
     }
 
-    let mut a = tokio::fs::File::create(&config.refactored_md).await?;
-    a.write_all(output.as_bytes()).await?;
-    a.shutdown().await?;
-
     log(format!("Gpt processor [{}] {}", chars, text_list.len()));
-    Ok(PathBuf::from(&config.refactored_md))
+    Ok(output)
 }
