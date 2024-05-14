@@ -1,7 +1,8 @@
 use std::{
-    path::{Path, PathBuf},
-    str::FromStr,
+    io::Write, path::{Path, PathBuf}, str::FromStr
 };
+
+use tokio::io::AsyncWriteExt;
 
 use crate::config::Config;
 use crate::convert_video_to_audio::convert_video_to_audio;
@@ -17,7 +18,7 @@ pub async fn video_to_text(
     config: &Config,
     request: Request,
     channel: tokio::sync::mpsc::Sender<String>,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let log = |msg: String| {
         let channel = channel.clone();
         log::info!("{}", msg);
@@ -93,6 +94,10 @@ pub async fn video_to_text(
         output += &res;
     }
 
+    let mut a = tokio::fs::File::create(&config.refactored_md).await?;
+    a.write_all(output.as_bytes()).await?;
+    a.shutdown().await?;
+
     log(format!("Gpt processor [{}] {}", chars, text_list.len()));
-    Ok(output)
+    Ok(PathBuf::from(&config.refactored_md))
 }

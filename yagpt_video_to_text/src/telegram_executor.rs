@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::{
     config::Config,
     markdown_to_html,
@@ -9,7 +11,7 @@ use tokio::sync::mpsc::Receiver;
 
 enum RequestInfo {
     Message(String),
-    Done(String),
+    Done(PathBuf),
     Error(String),
 }
 
@@ -36,12 +38,17 @@ async fn execute_request(config: &Config, bot: &VideoBot, req: UserRequest) {
             RequestInfo::Done(data) => {
                 let _ = bot
                     .bot
-                    .send_document(ChatId(req.chat_id), markdown_to_html::markdown_to_tg(&data))
+                    .send_document(
+                        ChatId(req.chat_id),
+                        markdown_to_html::markdown_to_tg(config, data),
+                    )
                     .await;
                 bot.send(req.chat_id, "Finish".to_string()).await;
+                return;
             }
             RequestInfo::Error(err) => {
                 bot.send(req.chat_id, format!("ERROR: {:?}", err)).await;
+                return;
             }
         };
     }
