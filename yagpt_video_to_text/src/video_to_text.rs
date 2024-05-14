@@ -1,8 +1,7 @@
 use std::{
-    io::Write, path::{Path, PathBuf}, str::FromStr
+    path::{Path, PathBuf},
+    str::FromStr,
 };
-
-use tokio::io::AsyncWriteExt;
 
 use crate::config::Config;
 use crate::convert_video_to_audio::convert_video_to_audio;

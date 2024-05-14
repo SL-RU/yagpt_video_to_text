@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use crate::{
     config::Config,
     markdown_to_html,
