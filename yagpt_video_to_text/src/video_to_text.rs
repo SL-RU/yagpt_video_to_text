@@ -33,10 +33,11 @@ pub async fn video_to_text(
     };
 
     log_str("Downloading video");
-    let video_path =
+    let video =
         crate::download_video::download_video(request.uri, Path::new(&config.video_path)).await?;
+    let video_path = video.path;
 
-    log_str("Download complete");
+    log_str(&format!("Download complete: {:?}", video.name));
     log_str("Converting video to audio");
 
     let audio_path =

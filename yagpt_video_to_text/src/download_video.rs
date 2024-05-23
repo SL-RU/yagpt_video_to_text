@@ -5,7 +5,12 @@ use std::{
 
 use youtube_dl::YoutubeDl;
 
-pub async fn download_video(url: String, local_path: &Path) -> io::Result<PathBuf> {
+pub struct VideoData {
+    pub path: PathBuf,
+    pub name: String,
+}
+
+pub async fn download_video(url: String, local_path: &Path) -> io::Result<VideoData> {
     if local_path.exists() {
         fs::remove_file(local_path)?;
     }
@@ -35,10 +40,12 @@ pub async fn download_video(url: String, local_path: &Path) -> io::Result<PathBu
         )
     })?;
 
-    log::info!(
-        "Video title: {:?}",
-        data.into_single_video().unwrap_or_default().title
-    );
+    let title = data
+        .into_single_video()
+        .unwrap_or_default()
+        .title
+        .unwrap_or_default();
+    log::info!("Video title: {title:?}");
 
     output.download_to_async(dir).await.map_err(|e| {
         io::Error::new(
@@ -47,5 +54,8 @@ pub async fn download_video(url: String, local_path: &Path) -> io::Result<PathBu
         )
     })?;
 
-    Ok(local_path.to_path_buf())
+    Ok(VideoData {
+        path: local_path.to_path_buf(),
+        name: title,
+    })
 }
